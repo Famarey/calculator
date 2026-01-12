@@ -177,9 +177,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 // -------------------------------
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    // ---------------------------------------------------------
     // 1. 处理 BIN 分割规则输入框 (editSplitRule)
-    // ---------------------------------------------------------
     if (obj == ui->editSplitRule) {
         static Base splitPrevBase = DEC;
         static bool splitActive = false;
@@ -204,9 +202,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             // 强制启用逗号按钮 (假设对象名为 btnComma)
             if (ui->btnComma) ui->btnComma->setEnabled(true);
 
-            // 禁用不相关的运算符按钮（可选，根据你的 UI 需求）
-            // ui->btnPlus->setEnabled(false);
-            // ui->btnMinus->setEnabled(false);
+            // 禁用不相关的运算符按钮
+            for (auto it = operatorButtons.begin(); it != operatorButtons.end(); ++it) {
+                it.value()->setEnabled(false);
+            }
 
         } else if (event->type() == QEvent::FocusOut) {
             if (splitActive) {
@@ -234,9 +233,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
     }
-    // ---------------------------------------------------------
     // 2. 处理各进制输入框的点击切换
-    // ---------------------------------------------------------
     else if (event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonDblClick) {
         QLineEdit* edit = qobject_cast<QLineEdit*>(obj);
         if (edit) {
