@@ -32,12 +32,24 @@ void MainWindow::setButtonEnabledByBase(Base base)
 
 void MainWindow::updateAllDisplays(long long value)
 {
+    // 保存所有输入框的光标位置
+    QMap<QLineEdit*, int> cursorPositions;
+    cursorPositions[ui->editDec] = ui->editDec->cursorPosition();
+    cursorPositions[ui->editHex] = ui->editHex->cursorPosition();
+    cursorPositions[ui->editOct] = ui->editOct->cursorPosition();
+    cursorPositions[ui->editBin] = ui->editBin->cursorPosition();
+    cursorPositions[ui->editBinResult] = ui->editBinResult->cursorPosition();
+    cursorPositions[ui->editDecResult] = ui->editDecResult->cursorPosition();
+    cursorPositions[ui->editHexResult] = ui->editHexResult->cursorPosition();
+    cursorPositions[ui->editExpression] = ui->editExpression->cursorPosition();
+    cursorPositions[ui->editSplitRule] = ui->editSplitRule->cursorPosition();
+
     // 更新基础显示
     ui->editDec->setText(QString::number(value, 10));
     ui->editHex->setText(QString::number(value, 16).toUpper());
     ui->editOct->setText(QString::number(value, 8));
     QString rawBin = QString::number(value, 2);
-    ui->editBin->setText(rawBin);
+    ui->editBin->setText(formatBinWithSpaces(rawBin));
 
     // 获取新的分割结果
     QString splitRule = ui->editSplitRule->text();
@@ -48,6 +60,14 @@ void MainWindow::updateAllDisplays(long long value)
     if (splitRule.isEmpty() || !formattedBin.contains('|')) {
         ui->editDecResult->setText(ui->editDec->text());
         ui->editHexResult->setText(ui->editHex->text());
+        // 恢复所有输入框的光标位置
+        for (auto it = cursorPositions.begin(); it != cursorPositions.end(); ++it) {
+            QLineEdit* edit = it.key();
+            int savedPos = it.value();
+            int maxPos = edit->text().length();
+            int restorePos = qMin(savedPos, maxPos);
+            edit->setCursorPosition(restorePos);
+        }
         return;
     }
 
@@ -64,7 +84,10 @@ void MainWindow::updateAllDisplays(long long value)
         }
         bool ok;
         // 注意：每一段都是一个独立的二进制数
-        long long partVal = part.toLongLong(&ok, 2);
+        // 移除空格以便解析
+        QString cleanPart = part;
+        cleanPart.remove(' ');
+        long long partVal = cleanPart.toLongLong(&ok, 2);
         if (ok) {
             decParts << QString::number(partVal, 10);
             hexParts << QString::number(partVal, 16).toUpper();
@@ -73,13 +96,37 @@ void MainWindow::updateAllDisplays(long long value)
 
     ui->editDecResult->setText(decParts.join('|'));
     ui->editHexResult->setText(hexParts.join('|'));
+
+    // 恢复所有输入框的光标位置
+    for (auto it = cursorPositions.begin(); it != cursorPositions.end(); ++it) {
+        QLineEdit* edit = it.key();
+        int savedPos = it.value();
+        int maxPos = edit->text().length();
+        int restorePos = qMin(savedPos, maxPos);
+        edit->setCursorPosition(restorePos);
+    }
+}
+
+QString MainWindow::formatBinWithSpaces(const QString &bin)
+{
+    if (bin.isEmpty()) return bin;
+    
+    QString result;
+    // 从右到左每四位加一个空格
+    for (int i = bin.length() - 1; i >= 0; i--) {
+        if ((bin.length() - 1 - i) > 0 && (bin.length() - 1 - i) % 4 == 0) {
+            result.prepend(' ');
+        }
+        result.prepend(bin[i]);
+    }
+    return result;
 }
 
 QString MainWindow::formatBinWithSplit(const QString &bin, const QString &rule)
 {
     if (rule.isEmpty() || bin.isEmpty()) return bin;
 
-    // 1. 解析规则并计算总长度
+    // 1. 解析规则并计算规则要求的总长度
     QStringList ruleStrings = rule.split(',');
     QList<int> lens;
     int totalRuleLen = 0;
@@ -94,33 +141,34 @@ QString MainWindow::formatBinWithSplit(const QString &bin, const QString &rule)
 
     if (lens.isEmpty()) return bin;
 
+    // 2. 补0逻辑：如果原始二进制长度不足规则总长，在高位（左侧）补0
+    QString paddedBin = bin;
+    if (bin.length() < totalRuleLen) {
+        paddedBin = bin.rightJustified(totalRuleLen, '0');
+    }
+
     QStringList resultParts;
-    int binLen = bin.length();
+    int currentLen = paddedBin.length();
     int currentPos = 0;
 
-    // 2. 保证低位被分割到：计算高位剩下的长度
-    // 如果规则总和大于二进制长度，剩余长度为0
-    int remainderLen = qMax(0, binLen - totalRuleLen);
-
-    // 3. 提取高位剩余部分
+    // 3. 计算"规则外"的高位部分
+    // 如果 paddedBin 比 totalRuleLen 长（即用户规则只定义了低位的一部分），多出的高位作为第一段
+    int remainderLen = currentLen - totalRuleLen;
     if (remainderLen > 0) {
-        resultParts << bin.left(remainderLen);
+        QString firstSegment = paddedBin.left(remainderLen);
+        // 对第一段内部添加空格格式化
+        resultParts << formatBinWithSpaces(firstSegment);
         currentPos = remainderLen;
     }
 
-    // 4. 从相对高位开始，按规则顺序分割
+    // 4. 按照规则从高位向低位依次切分
+    // 此时由于已经补过0，规则定义的每一段都能取满
     for (int l : lens) {
-        if (currentPos >= binLen) break;
-
-        // 提取当前长度，如果不满（说明规则设长了），则取到末尾
-        int actualTake = qMin(l, binLen - currentPos);
-        resultParts << bin.mid(currentPos, actualTake);
-        currentPos += actualTake;
-    }
-
-    // 5. 如果规则跑完了还有剩下的（通常在 remainderLen 逻辑下不会发生，除非逻辑溢出），补齐
-    if (currentPos < binLen) {
-        resultParts << bin.mid(currentPos);
+        if (currentPos >= currentLen) break;
+        QString segment = paddedBin.mid(currentPos, l);
+        // 对每段内部添加空格格式化
+        resultParts << formatBinWithSpaces(segment);
+        currentPos += l;
     }
 
     return resultParts.join('|');

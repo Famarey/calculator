@@ -77,6 +77,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnBackspace, &QPushButton::clicked, this, &MainWindow::onBackspaceClicked);
     connect(ui->btnEq, &QPushButton::clicked, this, &MainWindow::onEqualClicked);
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
+    connect(ui->btnReset, &QPushButton::clicked, this, &MainWindow::onResetClicked);
     connect(ui->btnComma, &QPushButton::clicked, this, &MainWindow::onBitOperatorClicked);
 
     // 4. 安装事件过滤器 (核心修改点：涵盖所有相关输入框)

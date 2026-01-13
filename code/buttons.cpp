@@ -7,6 +7,7 @@
 // -------------------------------
 // 按钮槽函数
 // -------------------------------
+
 void MainWindow::onDigitButtonClicked()
 {
     QPushButton *btn = qobject_cast<QPushButton*>(sender());
@@ -209,6 +210,7 @@ void MainWindow::onEqualClicked()
 
         // 显式触发一次分割刷新
         QString rawBin = ui->editBin->text();
+        rawBin.remove(' '); // 移除空格
         ui->editBinResult->setText(formatBinWithSplit(rawBin, ui->editSplitRule->text()));
     } catch (...) {
         QMessageBox::warning(this, "Error", "表达式错误");
@@ -232,6 +234,32 @@ void MainWindow::onClearClicked()
 
     // 分割规则恢复默认样式
     ui->editSplitRule->setStyleSheet(QString());
+
+    // 重置最后获得焦点的输入框为表达式框
+    lastFocusedEdit = ui->editExpression;
+    // 将焦点设置到表达式框
+    ui->editExpression->setFocus();
+
+    isUpdating = false;
+}
+
+void MainWindow::onResetClicked()
+{
+    isUpdating = true;
+
+    // 将除划分规则外的所有输入框置零
+    ui->editExpression->setText("0");
+    ui->editHex->setText("0");
+    ui->editDec->setText("0");
+    ui->editOct->setText("0");
+    ui->editBin->setText("0");
+    ui->editBinResult->setText("0");
+    ui->editDecResult->setText("0");
+    ui->editHexResult->setText("0");
+    // 注意：editSplitRule 不清空，保持原样
+
+    // 更新所有显示
+    updateAllDisplays(0);
 
     // 重置最后获得焦点的输入框为表达式框
     lastFocusedEdit = ui->editExpression;

@@ -39,6 +39,7 @@ private slots:
     void onHexResultChanged(const QString &text);
     void onUpdateModeChanged(int value);
     void onClearClicked();
+    void onResetClicked(); // 归零按钮处理
 
 private:
     Ui::MainWindow *ui;
@@ -52,9 +53,11 @@ private:
     void setButtonEnabledByBase(Base base);
     void updateAllDisplays(long long value);
     QString formatBinWithSplit(const QString &bin, const QString &rule);
+    QString formatBinWithSpaces(const QString &bin); // 每四位数字后加空格
     long long evaluateExpression(const QString &expr, Base base);
     void updateFromInputValue(long long value, Base inputBase = DEC);
     void updateFromResultValue(const QString &resultText, Base resultBase);
+    bool checkValueOverflow(const QString &text, Base base); // 检查输入是否超出64位范围
     QLineEdit* getFocusedEditBox(); // 获取当前获得焦点的输入框
     QLineEdit* lastFocusedEdit; // 记录最后获得焦点的输入框
     bool isUpdating; // 防止循环更新

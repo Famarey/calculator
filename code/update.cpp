@@ -28,7 +28,11 @@ void MainWindow::onUpdateModeChanged(int value)
         }
 
         if (!currentValue.isEmpty()) {
+            int savedCursorPos = ui->editExpression->cursorPosition();
             ui->editExpression->setText(currentValue);
+            int maxPos = ui->editExpression->text().length();
+            int restorePos = qMin(savedCursorPos, maxPos);
+            ui->editExpression->setCursorPosition(restorePos);
         }
     }
 
@@ -42,6 +46,18 @@ void MainWindow::updateFromInputValue(long long value, Base inputBase)
 {
     isUpdating = true;
 
+    // 保存所有输入框的光标位置
+    QMap<QLineEdit*, int> cursorPositions;
+    cursorPositions[ui->editDec] = ui->editDec->cursorPosition();
+    cursorPositions[ui->editHex] = ui->editHex->cursorPosition();
+    cursorPositions[ui->editOct] = ui->editOct->cursorPosition();
+    cursorPositions[ui->editBin] = ui->editBin->cursorPosition();
+    cursorPositions[ui->editBinResult] = ui->editBinResult->cursorPosition();
+    cursorPositions[ui->editDecResult] = ui->editDecResult->cursorPosition();
+    cursorPositions[ui->editHexResult] = ui->editHexResult->cursorPosition();
+    cursorPositions[ui->editExpression] = ui->editExpression->cursorPosition();
+    cursorPositions[ui->editSplitRule] = ui->editSplitRule->cursorPosition();
+
     // 保存当前的分割规则
     QString splitRule = ui->editSplitRule->text();
 
@@ -50,6 +66,15 @@ void MainWindow::updateFromInputValue(long long value, Base inputBase)
 
     // 恢复分割规则（updateAllDisplays可能会触发onSplitRuleChanged，但我们已经保存了规则）
     ui->editSplitRule->setText(splitRule);
+    
+    // 恢复所有输入框的光标位置
+    for (auto it = cursorPositions.begin(); it != cursorPositions.end(); ++it) {
+        QLineEdit* edit = it.key();
+        int savedPos = it.value();
+        int maxPos = edit->text().length();
+        int restorePos = qMin(savedPos, maxPos);
+        edit->setCursorPosition(restorePos);
+    }
 
     // 根据复选框位置决定是否更新表达式
     int updateMode = ui->chkSyncExpression->isChecked() ? 1 : 0;
@@ -67,7 +92,11 @@ void MainWindow::updateFromInputValue(long long value, Base inputBase)
         }
 
         if (!exprValue.isEmpty()) {
+            int savedCursorPos = ui->editExpression->cursorPosition();
             ui->editExpression->setText(exprValue);
+            int maxPos = ui->editExpression->text().length();
+            int restorePos = qMin(savedCursorPos, maxPos);
+            ui->editExpression->setCursorPosition(restorePos);
         }
     }
     // 如果updateMode == 0（仅更新数值），则不更新表达式
@@ -83,6 +112,15 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
     if (isUpdating) return;
     isUpdating = true;
 
+    // 保存当前焦点编辑框的光标位置
+    QLineEdit* focusedEdit = getFocusedEditBox();
+    int savedCursorPos = -1;
+    if (focusedEdit && (focusedEdit == ui->editBinResult || 
+                        focusedEdit == ui->editDecResult || 
+                        focusedEdit == ui->editHexResult)) {
+        savedCursorPos = focusedEdit->cursorPosition();
+    }
+
     // 获取当前的分割规则和BIN结果
     QString splitRule = ui->editSplitRule->text();
     QString currentBinResult = ui->editBinResult->text();
@@ -93,6 +131,7 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
         long long value = 0;
         QString cleanText = resultText;
         if (resultBase == BIN) {
+            cleanText.remove(' '); // 移除空格
             value = cleanText.replace("|", "").toLongLong(&ok, 2);
         } else if (resultBase == DEC) {
             value = cleanText.replace("|", "").toLongLong(&ok, 10);
@@ -102,6 +141,12 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
 
         if (ok) {
             updateAllDisplays(value);
+        }
+        // 恢复光标位置
+        if (savedCursorPos >= 0 && focusedEdit) {
+            int maxPos = focusedEdit->text().length();
+            int restorePos = qMin(savedCursorPos, maxPos);
+            focusedEdit->setCursorPosition(restorePos);
         }
         isUpdating = false;
         return;
@@ -121,6 +166,7 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
         long long totalValue = 0;
         QString cleanText = resultText;
         if (resultBase == BIN) {
+            cleanText.remove(' '); // 移除空格
             totalValue = cleanText.replace("|", "").toLongLong(&ok, 2);
         } else if (resultBase == DEC) {
             totalValue = cleanText.replace("|", "").toLongLong(&ok, 10);
@@ -130,6 +176,12 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
 
         if (ok) {
             updateAllDisplays(totalValue);
+        }
+        // 恢复光标位置
+        if (savedCursorPos >= 0 && focusedEdit) {
+            int maxPos = focusedEdit->text().length();
+            int restorePos = qMin(savedCursorPos, maxPos);
+            focusedEdit->setCursorPosition(restorePos);
         }
         isUpdating = false;
         return;
@@ -150,6 +202,7 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
 
     // 获取当前完整的二进制值，用于确定总长度
     QString currentBin = ui->editBin->text();
+    currentBin.remove(' '); // 移除空格
     int binLen = currentBin.length();
 
     // 计算高位剩余部分的长度（与formatBinWithSplit逻辑一致）
@@ -166,7 +219,9 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
         long long partValue = 0;
 
         if (resultBase == BIN) {
-            partValue = resultParts[i].toLongLong(&ok, 2);
+            QString cleanPart = resultParts[i];
+            cleanPart.remove(' '); // 移除空格
+            partValue = cleanPart.toLongLong(&ok, 2);
         } else if (resultBase == DEC) {
             partValue = resultParts[i].toLongLong(&ok, 10);
         } else if (resultBase == HEX) {
@@ -227,6 +282,14 @@ void MainWindow::updateFromResultValue(const QString &resultText, Base resultBas
 
     // 更新所有显示
     updateAllDisplays(totalValue);
+
+    // 恢复光标位置
+    if (savedCursorPos >= 0 && focusedEdit) {
+        // 确保光标位置不超过新文本的长度
+        int maxPos = focusedEdit->text().length();
+        int restorePos = qMin(savedCursorPos, maxPos);
+        focusedEdit->setCursorPosition(restorePos);
+    }
 
     isUpdating = false;
 }
