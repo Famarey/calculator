@@ -30,7 +30,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="labelHex">
         <property name="text">
-         <string>HEX</string>
+         <string>十六进制</string>
         </property>
        </widget>
       </item>
@@ -40,7 +40,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="labelDec">
         <property name="text">
-         <string>DEC</string>
+         <string>十进制</string>
         </property>
        </widget>
       </item>
@@ -50,7 +50,7 @@
       <item row="3" column="0">
        <widget class="QLabel" name="labelOct">
         <property name="text">
-         <string>OCT</string>
+         <string>八进制</string>
         </property>
        </widget>
       </item>
@@ -60,7 +60,7 @@
       <item row="4" column="0">
        <widget class="QLabel" name="labelBin">
         <property name="text">
-         <string>BIN</string>
+         <string>二进制</string>
         </property>
        </widget>
       </item>
@@ -70,21 +70,21 @@
       <item row="5" column="0">
        <widget class="QLabel" name="labelSplit">
         <property name="text">
-         <string>BIN分割(an-a0)</string>
+         <string>分割规则(an-a0)</string>
         </property>
        </widget>
       </item>
       <item row="5" column="1">
        <widget class="QLineEdit" name="editSplitRule">
         <property name="placeholderText">
-         <string>例: 1,2,4 (从高位应用)</string>
+         <string>例: 1,2,4 (按照二进制的位数从高位应用)</string>
         </property>
        </widget>
       </item>
       <item row="6" column="0">
        <widget class="QLabel" name="labelBinRes">
         <property name="text">
-         <string>BIN结果(an-a0)</string>
+         <string>二进制结果(an-a0)</string>
         </property>
        </widget>
       </item>
@@ -94,7 +94,7 @@
       <item row="7" column="0">
        <widget class="QLabel" name="labelDecRes">
         <property name="text">
-         <string>DEC结果(an-a0)</string>
+         <string>十进制结果(an-a0)</string>
         </property>
        </widget>
       </item>
@@ -104,7 +104,7 @@
       <item row="8" column="0">
        <widget class="QLabel" name="labelHexRes">
         <property name="text">
-         <string>HEX结果(an-a0)</string>
+         <string>十六进制结果(an-a0)</string>
         </property>
        </widget>
       </item>
@@ -130,13 +130,6 @@
        <widget class="QPushButton" name="btnD">
         <property name="text">
          <string>D</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="4">
-       <widget class="QPushButton" name="btnEq">
-        <property name="text">
-         <string>=</string>
         </property>
        </widget>
       </item>
@@ -266,20 +259,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="btnBackspace">
-        <property name="text">
-         <string>Back</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="4">
-       <widget class="QPushButton" name="btnClear">
-        <property name="text">
-         <string>清空</string>
-        </property>
-       </widget>
-      </item>
       <item row="0" column="5">
        <widget class="QPushButton" name="btnReset">
         <property name="text">
@@ -329,20 +308,6 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="5">
-       <widget class="QPushButton" name="btnShl">
-        <property name="text">
-         <string>&lt;&lt;</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="5">
-       <widget class="QPushButton" name="btnShr">
-        <property name="text">
-         <string>&gt;&gt;</string>
-        </property>
-       </widget>
-      </item>
       <item row="5" column="3">
        <widget class="QPushButton" name="btnMod">
         <property name="text">
@@ -361,6 +326,41 @@
        <widget class="QPushButton" name="btnComma">
         <property name="text">
          <string>,</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3" colspan="2">
+       <widget class="QPushButton" name="btnBackspace">
+        <property name="text">
+         <string>Back</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="5">
+       <widget class="QPushButton" name="btnEq">
+        <property name="text">
+         <string>=</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="5">
+       <widget class="QPushButton" name="btnShr">
+        <property name="text">
+         <string>&gt;&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="4">
+       <widget class="QPushButton" name="btnShl">
+        <property name="text">
+         <string>&lt;&lt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="5" rowspan="2">
+       <widget class="QPushButton" name="btnClear">
+        <property name="text">
+         <string>清空</string>
         </property>
        </widget>
       </item>
