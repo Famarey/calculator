@@ -178,6 +178,71 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 // -------------------------------
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
+    // 0. 特殊处理：BIN 分割结果输入框（editBinResult）的编辑行为
+    // 只在按键事件时处理，其他事件交给默认逻辑
+    if (obj == ui->editBinResult && event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        QLineEdit *edit = ui->editBinResult;
+        QString text = edit->text();
+        int cursorPos = edit->cursorPosition();
+
+        // 只处理 '0'、'1' 和 Backspace，其他按键走默认流程
+        int key = keyEvent->key();
+        if (key == Qt::Key_0 || key == Qt::Key_1) {
+            // 1. 光标默认修改左边的一位
+            int idx = cursorPos - 1;
+            // 向左跳过空格
+            while (idx >= 0 && text[idx] == ' ') {
+                idx--;
+            }
+            // 遇到分隔符或越界则不处理
+            if (idx < 0 || text[idx] == '|')
+                return true; // 吞掉按键，防止插入/删除
+
+            // 仅修改这一位，不改变长度
+            QChar bitChar = (key == Qt::Key_1) ? QChar('1') : QChar('0');
+            text[idx] = bitChar;
+            edit->setText(text);
+
+            // 修改后光标右移一位，注意跳过空格
+            int newPos = idx + 2;
+            while (newPos < text.length() && text[newPos-1] == ' ') {
+                newPos++;
+            }
+            edit->setCursorPosition(newPos);
+
+            return true; // 事件已处理
+        } else if (key == Qt::Key_Backspace) {
+            // 2. Backspace：将光标左边的一位置零，光标左移一位
+            int idx = cursorPos - 1;
+            // 向左跳过空格
+            while (idx >= 0 && text[idx] == ' ') {
+                idx--;
+            }
+            if (idx < 0 || text[idx] == '|')
+                return true; // 不允许跨过分隔符或越界
+
+            // 将该位设置为 '0'
+            text[idx] = QChar('0');
+            edit->setText(text);
+
+            // 光标左移一位（逻辑上一位），注意跳过空格
+            int leftIdx = idx - 1;
+            while (leftIdx >= 0 && text[leftIdx] == ' ') {
+                leftIdx--;
+            }
+            int newPos = 0;
+            if (leftIdx >= 0 && text[leftIdx] != '|') {
+                newPos = leftIdx + 1; // 位于左边这一位和当前位之间
+            }
+            edit->setCursorPosition(newPos);
+
+            return true;
+        }
+
+        // 其他按键（如方向键）走默认处理
+    }
+
     // 1. 处理 BIN 分割规则输入框 (editSplitRule)
     if (obj == ui->editSplitRule) {
         static Base splitPrevBase = DEC;
