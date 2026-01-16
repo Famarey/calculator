@@ -25,8 +25,40 @@ void MainWindow::onDigitButtonClicked()
     // 在"仅更新数值"模式下，不更新表达式框
     if (updateMode == 0) {
         if (focusedEdit && focusedEdit != ui->editExpression) {
-            // 焦点在结果框或输入框上，直接插入到该输入框
-            focusedEdit->insert(text);
+            // 特殊处理：BIN 分割结果输入框
+            if (focusedEdit == ui->editBinResult && (text == "0" || text == "1")) {
+                QString binText = focusedEdit->text();
+                int cursorPos = focusedEdit->cursorPosition();
+                
+                // 光标默认修改左边的一位
+                int idx = cursorPos - 1;
+                // 向左跳过空格
+                while (idx >= 0 && binText[idx] == ' ') {
+                    idx--;
+                }
+                // 遇到分隔符或越界则不处理
+                if (idx >= 0 && binText[idx] != '|') {
+                    // 仅修改这一位，不改变长度
+                    QChar bitChar = (text == "1") ? QChar('1') : QChar('0');
+                    binText[idx] = bitChar;
+                    isUpdating = true;
+                    focusedEdit->setText(binText);
+                    isUpdating = false;
+
+                    // 修改后光标右移一位，注意跳过空格
+                    int newPos = idx + 1;
+                    while (newPos < binText.length() && binText[newPos] == ' ') {
+                        newPos++;
+                    }
+                    focusedEdit->setCursorPosition(newPos);
+
+                    // 触发更新
+                    onBinResultChanged(binText);
+                }
+            } else {
+                // 焦点在结果框或输入框上，直接插入到该输入框
+                focusedEdit->insert(text);
+            }
 
             // 触发文本变化信号来更新其他显示
             if (focusedEdit == ui->editBinResult) {
@@ -65,8 +97,40 @@ void MainWindow::onDigitButtonClicked()
         if (focusedEdit == ui->editExpression) {
             focusedEdit->insert(text);
         } else if (focusedEdit && focusedEdit != ui->editExpression) {
-            // 焦点在结果框或输入框上，直接插入到该输入框
-            focusedEdit->insert(text);
+            // 特殊处理：BIN 分割结果输入框
+            if (focusedEdit == ui->editBinResult && (text == "0" || text == "1")) {
+                QString binText = focusedEdit->text();
+                int cursorPos = focusedEdit->cursorPosition();
+                
+                // 光标默认修改左边的一位
+                int idx = cursorPos - 1;
+                // 向左跳过空格
+                while (idx >= 0 && binText[idx] == ' ') {
+                    idx--;
+                }
+                // 遇到分隔符或越界则不处理
+                if (idx >= 0 && binText[idx] != '|') {
+                    // 仅修改这一位，不改变长度
+                    QChar bitChar = (text == "1") ? QChar('1') : QChar('0');
+                    binText[idx] = bitChar;
+                    isUpdating = true;
+                    focusedEdit->setText(binText);
+                    isUpdating = false;
+
+                    // 修改后光标右移一位，注意跳过空格
+                    int newPos = idx + 1;
+                    while (newPos < binText.length() && binText[newPos] == ' ') {
+                        newPos++;
+                    }
+                    focusedEdit->setCursorPosition(newPos);
+
+                    // 触发更新
+                    onBinResultChanged(binText);
+                }
+            } else {
+                // 焦点在结果框或输入框上，直接插入到该输入框
+                focusedEdit->insert(text);
+            }
 
             // 触发文本变化信号来更新其他显示
             if (focusedEdit == ui->editBinResult) {
@@ -133,7 +197,59 @@ void MainWindow::onBackspaceClicked()
     // 在"仅更新数值"模式下，不更新表达式框
     if (updateMode == 0) {
         if (focusedEdit && focusedEdit != ui->editExpression) {
-            focusedEdit->backspace();
+            // 特殊处理：BIN 分割结果输入框
+            if (focusedEdit == ui->editBinResult) {
+                QString text = focusedEdit->text();
+                int cursorPos = focusedEdit->cursorPosition();
+                
+                // Backspace：将光标左边的一位置零，光标左移一位
+                int idx = cursorPos - 1;
+                // 向左跳过空格
+                while (idx >= 0 && text[idx] == ' ') {
+                    idx--;
+                }
+                // 如果遇到分隔符或越界，光标停在"|"左边
+                if (idx < 0 || text[idx] == '|') {
+                    // 找到"|"的位置，光标停在它左边
+                    int pipePos = idx;
+                    if (idx >= 0 && text[idx] == '|') {
+                        // 光标已经在"|"右边，移到"|"左边
+                        focusedEdit->setCursorPosition(pipePos);
+                    } else {
+                        // 已经到开头，光标保持在0
+                        focusedEdit->setCursorPosition(0);
+                    }
+                } else {
+                    // 将该位设置为 '0'
+                    text[idx] = QChar('0');
+                    isUpdating = true;
+                    focusedEdit->setText(text);
+                    isUpdating = false;
+
+                    // 光标左移一位（逻辑上一位），注意跳过空格
+                    int leftIdx = idx - 1;
+                    while (leftIdx >= 0 && text[leftIdx] == ' ') {
+                        leftIdx--;
+                    }
+                    int newPos = 0;
+                    if (leftIdx >= 0 && text[leftIdx] != '|') {
+                        newPos = leftIdx + 1; // 位于左边这一位和当前位之间
+                    } else {
+                        // 如果左边是'|'或越界，光标停在'|'左边
+                        if (leftIdx >= 0 && text[leftIdx] == '|') {
+                            newPos = leftIdx; // 光标在'|'左边
+                        } else {
+                            newPos = 0; // 已经到开头
+                        }
+                    }
+                    focusedEdit->setCursorPosition(newPos);
+
+                    // 触发更新
+                    onBinResultChanged(text);
+                }
+            } else {
+                focusedEdit->backspace();
+            }
 
             // 触发文本变化信号来更新其他显示
             if (focusedEdit == ui->editBinResult) {
@@ -172,7 +288,59 @@ void MainWindow::onBackspaceClicked()
         if (focusedEdit == ui->editExpression) {
             focusedEdit->backspace();
         } else if (focusedEdit && focusedEdit != ui->editExpression) {
-            focusedEdit->backspace();
+            // 特殊处理：BIN 分割结果输入框
+            if (focusedEdit == ui->editBinResult) {
+                QString text = focusedEdit->text();
+                int cursorPos = focusedEdit->cursorPosition();
+                
+                // Backspace：将光标左边的一位置零，光标左移一位
+                int idx = cursorPos - 1;
+                // 向左跳过空格
+                while (idx >= 0 && text[idx] == ' ') {
+                    idx--;
+                }
+                // 如果遇到分隔符或越界，光标停在"|"左边
+                if (idx < 0 || text[idx] == '|') {
+                    // 找到"|"的位置，光标停在它左边
+                    int pipePos = idx;
+                    if (idx >= 0 && text[idx] == '|') {
+                        // 光标已经在"|"右边，移到"|"左边
+                        focusedEdit->setCursorPosition(pipePos);
+                    } else {
+                        // 已经到开头，光标保持在0
+                        focusedEdit->setCursorPosition(0);
+                    }
+                } else {
+                    // 将该位设置为 '0'
+                    text[idx] = QChar('0');
+                    isUpdating = true;
+                    focusedEdit->setText(text);
+                    isUpdating = false;
+
+                    // 光标左移一位（逻辑上一位），注意跳过空格
+                    int leftIdx = idx - 1;
+                    while (leftIdx >= 0 && text[leftIdx] == ' ') {
+                        leftIdx--;
+                    }
+                    int newPos = 0;
+                    if (leftIdx >= 0 && text[leftIdx] != '|') {
+                        newPos = leftIdx + 1; // 位于左边这一位和当前位之间
+                    } else {
+                        // 如果左边是'|'或越界，光标停在'|'左边
+                        if (leftIdx >= 0 && text[leftIdx] == '|') {
+                            newPos = leftIdx; // 光标在'|'左边
+                        } else {
+                            newPos = 0; // 已经到开头
+                        }
+                    }
+                    focusedEdit->setCursorPosition(newPos);
+
+                    // 触发更新
+                    onBinResultChanged(text);
+                }
+            } else {
+                focusedEdit->backspace();
+            }
 
             // 触发文本变化信号来更新其他显示
             if (focusedEdit == ui->editBinResult) {

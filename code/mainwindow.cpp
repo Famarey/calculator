@@ -77,7 +77,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnBackspace, &QPushButton::clicked, this, &MainWindow::onBackspaceClicked);
     connect(ui->btnEq, &QPushButton::clicked, this, &MainWindow::onEqualClicked);
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
-    connect(ui->btnReset, &QPushButton::clicked, this, &MainWindow::onResetClicked);
     connect(ui->btnComma, &QPushButton::clicked, this, &MainWindow::onBitOperatorClicked);
 
     // 4. 安装事件过滤器 (核心修改点：涵盖所有相关输入框)
@@ -179,7 +178,6 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     // 0. 特殊处理：BIN 分割结果输入框（editBinResult）的编辑行为
-    // 只在按键事件时处理，其他事件交给默认逻辑
     if (obj == ui->editBinResult && event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
         QLineEdit *edit = ui->editBinResult;
@@ -202,15 +200,19 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             // 仅修改这一位，不改变长度
             QChar bitChar = (key == Qt::Key_1) ? QChar('1') : QChar('0');
             text[idx] = bitChar;
+            isUpdating = true;
             edit->setText(text);
+            isUpdating = false;
 
             // 修改后光标右移一位，注意跳过空格
-            int newPos = idx + 2;
-            while (newPos < text.length() && text[newPos-1] == ' ') {
+            int newPos = idx + 1;
+            while (newPos < text.length() && text[newPos] == ' ') {
                 newPos++;
             }
             edit->setCursorPosition(newPos);
 
+            // 触发更新
+            onBinResultChanged(text);
             return true; // 事件已处理
         } else if (key == Qt::Key_Backspace) {
             // 2. Backspace：将光标左边的一位置零，光标左移一位
@@ -219,12 +221,25 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             while (idx >= 0 && text[idx] == ' ') {
                 idx--;
             }
-            if (idx < 0 || text[idx] == '|')
-                return true; // 不允许跨过分隔符或越界
+            // 如果遇到分隔符或越界，光标停在"|"左边
+            if (idx < 0 || text[idx] == '|') {
+                // 找到"|"的位置，光标停在它左边
+                int pipePos = idx;
+                if (idx >= 0 && text[idx] == '|') {
+                    // 光标已经在"|"右边，移到"|"左边
+                    edit->setCursorPosition(pipePos);
+                } else {
+                    // 已经到开头，光标保持在0
+                    edit->setCursorPosition(0);
+                }
+                return true; // 事件已处理
+            }
 
             // 将该位设置为 '0'
             text[idx] = QChar('0');
+            isUpdating = true;
             edit->setText(text);
+            isUpdating = false;
 
             // 光标左移一位（逻辑上一位），注意跳过空格
             int leftIdx = idx - 1;
@@ -234,9 +249,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             int newPos = 0;
             if (leftIdx >= 0 && text[leftIdx] != '|') {
                 newPos = leftIdx + 1; // 位于左边这一位和当前位之间
+            } else {
+                // 如果左边是'|'或越界，光标停在'|'左边
+                if (leftIdx >= 0 && text[leftIdx] == '|') {
+                    newPos = leftIdx; // 光标在'|'左边
+                } else {
+                    newPos = 0; // 已经到开头
+                }
             }
             edit->setCursorPosition(newPos);
 
+            // 触发更新
+            onBinResultChanged(text);
             return true;
         }
 
