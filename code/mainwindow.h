@@ -58,6 +58,11 @@ private:
     void updateFromInputValue(long long value, Base inputBase = DEC);
     void updateFromResultValue(const QString &resultText, Base resultBase);
     bool checkValueOverflow(const QString &text, Base base); // 检查输入是否超出64位范围
+    bool validateExpression(const QString &expr, Base base, QString &errorMsg); // 检查表达式是否合法
+    bool handleBinResultKeyEvent(QKeyEvent *keyEvent); // 处理二进制分割结果的键盘事件
+    bool handleBinResultDigitInput(const QString &digit); // 处理二进制分割结果的数字输入（用于按钮点击）
+    int findLeftDigitPos(const QString &text, int cursorPos); // 找到光标左边最近的数字位位置
+    int findRightDigitPos(const QString &text, int cursorPos); // 找到光标右边最近的数字位位置（跳过空格和|）
     QLineEdit* getFocusedEditBox(); // 获取当前获得焦点的输入框
     QLineEdit* lastFocusedEdit; // 记录最后获得焦点的输入框
     bool isUpdating; // 防止循环更新

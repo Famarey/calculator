@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 
 #include <QEvent>
+#include <QKeyEvent>
 #include <QApplication>
 #include <QDebug>
 #include <QRegularExpression>
@@ -30,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     };
 
     // 2. 初始化运算符按钮映射
+    // 注意：btnAnd按钮显示的是"&&"，但实际插入的应该是"&"
     operatorButtons = {
         {"+", ui->btnAdd}, {"-", ui->btnSub}, {"*", ui->btnMul}, {"/", ui->btnDiv},
         {"%", ui->btnMod}, {"&", ui->btnAnd}, {"|", ui->btnOr}, {"^", ui->btnXor},
@@ -77,6 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnBackspace, &QPushButton::clicked, this, &MainWindow::onBackspaceClicked);
     connect(ui->btnEq, &QPushButton::clicked, this, &MainWindow::onEqualClicked);
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
+    connect(ui->btnReset, &QPushButton::clicked, this, &MainWindow::onResetClicked);
     connect(ui->btnComma, &QPushButton::clicked, this, &MainWindow::onBitOperatorClicked);
 
     // 4. 安装事件过滤器 (核心修改点：涵盖所有相关输入框)
@@ -173,100 +176,183 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 }
 
 // -------------------------------
+// 二进制分割结果编辑辅助函数
+// -------------------------------
+int MainWindow::findLeftDigitPos(const QString &text, int cursorPos)
+{
+    // 从光标位置向左查找，找到第一个数字位（0或1）
+    for (int i = cursorPos - 1; i >= 0; i--) {
+        QChar c = text[i];
+        if (c == '0' || c == '1') {
+            return i;
+        }
+    }
+    return -1; // 没找到
+}
+
+int MainWindow::findRightDigitPos(const QString &text, int cursorPos)
+{
+    // 从光标位置向右查找，跳过空格和|，找到第一个数字位（0或1）
+    for (int i = cursorPos; i < text.length(); i++) {
+        QChar c = text[i];
+        if (c == '0' || c == '1') {
+            return i;
+        }
+    }
+    return -1; // 没找到
+}
+
+bool MainWindow::handleBinResultDigitInput(const QString &digit)
+{
+    QLineEdit *edit = ui->editBinResult;
+    if (!edit || (digit != "0" && digit != "1")) return false;
+    
+    QString text = edit->text();
+    int cursorPos = edit->cursorPosition();
+    
+    // 找到光标左边最近的数字位
+    int leftPos = findLeftDigitPos(text, cursorPos);
+    
+    if (leftPos >= 0) {
+        // 修改该位置的数字
+        text[leftPos] = digit[0];
+        
+        // 更新文本
+        isUpdating = true;
+        edit->setText(text);
+        isUpdating = false;
+        
+        // 从修改位置向右找下一个数字位（跳过空格和|）
+        int rightPos = findRightDigitPos(text, leftPos + 1);
+        if (rightPos >= 0) {
+            edit->setCursorPosition(rightPos + 1);
+        } else {
+            // 如果右边没有数字位了，光标移到末尾
+            edit->setCursorPosition(text.length());
+        }
+        
+        // 触发文本变化信号
+        onBinResultChanged(text);
+        return true; // 已处理
+    }
+    return false; // 未处理
+}
+
+bool MainWindow::handleBinResultKeyEvent(QKeyEvent *keyEvent)
+{
+    QLineEdit *edit = ui->editBinResult;
+    if (!edit) return false;
+    
+    QString text = edit->text();
+    int cursorPos = edit->cursorPosition();
+    
+    // 处理数字输入（0或1）
+    if (keyEvent->key() >= Qt::Key_0 && keyEvent->key() <= Qt::Key_1) {
+        QString digit = QString::number(keyEvent->key() - Qt::Key_0);
+        
+        // 找到光标左边最近的数字位
+        int leftPos = findLeftDigitPos(text, cursorPos);
+        
+        if (leftPos >= 0) {
+            // 修改该位置的数字
+            text[leftPos] = digit[0];
+            
+            // 更新文本
+            isUpdating = true;
+            edit->setText(text);
+            isUpdating = false;
+            
+            // 从修改位置向右找下一个数字位（跳过空格和|）
+            int rightPos = findRightDigitPos(text, leftPos + 1);
+            if (rightPos >= 0) {
+                edit->setCursorPosition(rightPos + 1);
+            } else {
+                // 如果右边没有数字位了，光标移到末尾
+                edit->setCursorPosition(text.length());
+            }
+            
+            // 触发文本变化信号
+            onBinResultChanged(text);
+            return true; // 已处理
+        }
+        return true; // 即使没找到也阻止默认行为
+    }
+    
+    // 处理Backspace
+    if (keyEvent->key() == Qt::Key_Backspace) {
+        // 找到光标左边最近的数字位
+        int leftPos = findLeftDigitPos(text, cursorPos);
+        
+        if (leftPos >= 0) {
+            // 将该位置置零
+            text[leftPos] = '0';
+            
+            // 更新文本
+            isUpdating = true;
+            edit->setText(text);
+            isUpdating = false;
+            
+            // 光标移到被置零的位置，然后左移一位（跳过空格）
+            int newPos = leftPos;
+            if (newPos > 0) {
+                // 跳过空格
+                while (newPos >= 0 && text[newPos] == ' ') {
+                    newPos--;
+                }
+            }
+            
+            // 检查修改完后光标是否位于"|"右侧
+            if (newPos >= 0 && newPos < text.length()) {
+                // 检查newPos右侧是否有|
+                bool isAfterPipe = false;
+                for (int i = newPos + 1; i < text.length(); i++) {
+                    QChar c = text[i];
+                    if (c == '|') {
+                        isAfterPipe = true;
+                        break;
+                    } else if (c == '0' || c == '1') {
+                        break; // 遇到数字，说明不在|右侧
+                    } else if (c != ' ') {
+                        break; // 遇到其他字符
+                    }
+                }
+                
+                if (isAfterPipe) {
+                    // 位于|右侧，额外左移一位（跳过空格）
+                    if (newPos > 0) {
+                        // 跳过空格
+                        while (newPos >= 0 && text[newPos] == ' ') {
+                            newPos--;
+                        }
+                    }
+                }
+            }
+            
+            edit->setCursorPosition(qMax(0, newPos));
+            
+            // 触发文本变化信号
+            onBinResultChanged(text);
+            return true; // 已处理
+        }
+        return true; // 即使没找到也阻止默认行为
+    }
+    
+    return false; // 未处理，使用默认行为
+}
+
+// -------------------------------
 // 核心逻辑：事件过滤器（修改后）
 // -------------------------------
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    // 0. 特殊处理：BIN 分割结果输入框（editBinResult）的编辑行为
+    // 0. 特殊处理：二进制分割结果输入框的键盘事件
     if (obj == ui->editBinResult && event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
-        QLineEdit *edit = ui->editBinResult;
-        QString text = edit->text();
-        int cursorPos = edit->cursorPosition();
-
-        // 只处理 '0'、'1' 和 Backspace，其他按键走默认流程
-        int key = keyEvent->key();
-        if (key == Qt::Key_0 || key == Qt::Key_1) {
-            // 1. 光标默认修改左边的一位
-            int idx = cursorPos - 1;
-            // 向左跳过空格
-            while (idx >= 0 && text[idx] == ' ') {
-                idx--;
-            }
-            // 遇到分隔符或越界则不处理
-            if (idx < 0 || text[idx] == '|')
-                return true; // 吞掉按键，防止插入/删除
-
-            // 仅修改这一位，不改变长度
-            QChar bitChar = (key == Qt::Key_1) ? QChar('1') : QChar('0');
-            text[idx] = bitChar;
-            isUpdating = true;
-            edit->setText(text);
-            isUpdating = false;
-
-            // 修改后光标右移一位，注意跳过空格
-            int newPos = idx + 1;
-            while (newPos < text.length() && text[newPos] == ' ') {
-                newPos++;
-            }
-            edit->setCursorPosition(newPos);
-
-            // 触发更新
-            onBinResultChanged(text);
-            return true; // 事件已处理
-        } else if (key == Qt::Key_Backspace) {
-            // 2. Backspace：将光标左边的一位置零，光标左移一位
-            int idx = cursorPos - 1;
-            // 向左跳过空格
-            while (idx >= 0 && text[idx] == ' ') {
-                idx--;
-            }
-            // 如果遇到分隔符或越界，光标停在"|"左边
-            if (idx < 0 || text[idx] == '|') {
-                // 找到"|"的位置，光标停在它左边
-                int pipePos = idx;
-                if (idx >= 0 && text[idx] == '|') {
-                    // 光标已经在"|"右边，移到"|"左边
-                    edit->setCursorPosition(pipePos);
-                } else {
-                    // 已经到开头，光标保持在0
-                    edit->setCursorPosition(0);
-                }
-                return true; // 事件已处理
-            }
-
-            // 将该位设置为 '0'
-            text[idx] = QChar('0');
-            isUpdating = true;
-            edit->setText(text);
-            isUpdating = false;
-
-            // 光标左移一位（逻辑上一位），注意跳过空格
-            int leftIdx = idx - 1;
-            while (leftIdx >= 0 && text[leftIdx] == ' ') {
-                leftIdx--;
-            }
-            int newPos = 0;
-            if (leftIdx >= 0 && text[leftIdx] != '|') {
-                newPos = leftIdx + 1; // 位于左边这一位和当前位之间
-            } else {
-                // 如果左边是'|'或越界，光标停在'|'左边
-                if (leftIdx >= 0 && text[leftIdx] == '|') {
-                    newPos = leftIdx; // 光标在'|'左边
-                } else {
-                    newPos = 0; // 已经到开头
-                }
-            }
-            edit->setCursorPosition(newPos);
-
-            // 触发更新
-            onBinResultChanged(text);
-            return true;
+        if (handleBinResultKeyEvent(keyEvent)) {
+            return true; // 已处理，阻止默认行为
         }
-
-        // 其他按键（如方向键）走默认处理
     }
-
+    
     // 1. 处理 BIN 分割规则输入框 (editSplitRule)
     if (obj == ui->editSplitRule) {
         static Base splitPrevBase = DEC;

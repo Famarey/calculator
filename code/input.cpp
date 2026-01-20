@@ -16,7 +16,7 @@ bool MainWindow::checkValueOverflow(const QString &text, Base base)
     if (cleanText.isEmpty()) return false;
     
     // 64位无符号整数的最大值是 2^64 - 1 = 18446744073709551615
-    const unsigned long long MAX_64BIT = 9223372036854775807ULL;
+    const unsigned long long MAX_64BIT = 9223372036854775808ULL;
     
     // 先检查字符串长度，如果明显超出，直接返回true
     // 二进制：64位 = 64个字符
